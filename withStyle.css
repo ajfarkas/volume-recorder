@@ -1,0 +1,19 @@
+* {
+  margin: 0;
+  border: 0;
+}
+
+#graph {
+  width: 960px;
+  height: 480px;
+}
+
+.line {
+  fill: none;
+  stroke: black;
+  stroke-width: 10;
+}
+
+text {
+  font-size: 50rem;
+}
