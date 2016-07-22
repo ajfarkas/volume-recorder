@@ -2,10 +2,12 @@ var audioCtx = new AudioContext()
 var source = undefined
 var analyser = undefined
 var datum = undefined // single set of sound data
+var maxVol = undefined
 var data = []
 var interval = undefined
 var svg = d3.select('#graph')
 var timeSpan = 30000
+var debug = {n: 0, total: 0, average: null}
 // set d3 config
 var width = timeSpan,
     height = timeSpan/5
@@ -36,7 +38,8 @@ var xAxis = d3.svg.axis()
 var yAxis = d3.svg.axis()
   .scale(y)
   .orient('left')
-  .tickSize(0, 0).ticks(3)
+  .tickFormat('')
+  .tickSize(600, null).ticks(11)
 
 // halt the process
 function stop() {
@@ -45,27 +48,31 @@ function stop() {
 
 function updateGraph() {
   analyser.getByteTimeDomainData(datum)
-  var max = datum.reduce(function (a,b) {
-    return a > b ? a : b
-  }) - 128
+
+  var vol = datum.reduce(function(a, b) {
+    return a + Math.abs(b - 128)
+  })
   data.push({
     time: Date.now(),
-    vol: max/128
+    vol: vol
   })
 
-  // remove old data
-  if (data.length > timeSpan/10) { // 8640000cs/day
-    data.shift()
-  }
-
   // set time span to show
-  var timeCap = timeSpan // 1 second
   var latest = data.length
     ? data[data.length - 1].time
     : 0
+  var first = latest - timeSpan
+  // trim data to show only span
+  data.some(function(d, i) {
+    if (d.time < first) {
+      data.splice(i, 1)
+    } else {
+      return true
+    }
+  })
   
-  x.domain([latest - timeCap, latest])
-  y.domain([0, 1])
+  x.domain([first, latest])
+  y.domain([0, maxVol])
 
   var line = d3.svg.line()
     .x(function(d) { return x(parseInt(d.time)) })
@@ -120,6 +127,7 @@ function getStream(stream) {
   analyser.fftSize = 2048
   source.connect(analyser)
   datum = new Uint8Array(analyser.frequencyBinCount)
+  maxVol = datum.length * 128
   // start graphing
   interval = setInterval(updateGraph, 10)
 }

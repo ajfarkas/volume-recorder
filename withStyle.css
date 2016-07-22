@@ -17,3 +17,8 @@
 text {
   font-size: 50rem;
 }
+
+.tick line {
+  stroke: black;
+  stroke-width: 20;
+}
