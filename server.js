@@ -1,39 +1,48 @@
-var config = require('./config')
 var levelup = require('levelup')
 
 var config = {
-  development: {
-    port: process.env.PORT || 8008,
-    ip: '127.0.0.1',
-    db: './choicesdb',
-    token: null,
-    prettyHtml: true
-  }
+  port: process.env.PORT || 8001,
+  ip: '127.0.0.1',
+  db: './audiodb',
+  token: null,
+  prettyHtml: true
 }
 var db = levelup(config.db)
 
-// var http = require('http')
-// var express = require('express')
-// var fs = require('fs')
-// var mime = require('mime')
+var http = require('http')
+var express = require('express')
+var fs = require('fs')
+var mime = require('mime')
 
-// var app = express()
-// var config = require('./node/config')
-// var db = require('./node/leveldb')
-// var fetch = require('./node/fetchInfo')
-
+var app = express()
 
 // updateDaily()
 
-// app.get(/.*/, function(req, res) {
-//   write(res, req.url)
-// })
+app.get(/.*/, function(req, res) {
+  write(res, req.url)
+})
 
-// var server = app.listen(config.port, config.ip)
-// console.log('server running on port '+config.port+'.')
+app.post('/saveaudio/', function(req, res) {
+  req.on('data', function(d) {
+    var data = new Buffer(d).toString()
+    console.log(data)
+    res.writeHead(200, {'Content-Type': 'text/plain'})
+    res.write('success')
+    res.end()
+    // var json = JSON.parse(data)
+    // console.log('loginreq')
 
-// //create new websocket
-// socket.createNew(server)
+    // if (json.signup) {
+    //   console.log('signup:'+json.signup)
+    //   login.signup(json, writeIDs.bind(null, res))
+    // } else {
+    //   login.getIds(json, writeIDs.bind(null, res))
+    // }
+  })
+})
+
+var server = app.listen(config.port, config.ip)
+console.log('server running on port '+config.port+'.')
     
 // function callJSON(res) {
 //   var waitForData = setInterval(function() {
@@ -47,24 +56,21 @@ var db = levelup(config.db)
 //   }, 100)
 // }
 
-// function write(res, file, options) {
-//   if (file == '/') {
-//     file = __dirname+'/public/index.html'
-//   }
-//   else if (file.match('bannock_weather.json') ) {
-//     return callJSON(res)
-//   }
-//   else 
-//     file = file.replace('/', __dirname+'/public/')
+function write(res, file, options) {
+  if (!file || file == '/') {
+    file = __dirname+'/audiocap.html'
+  } else {
+    file = file.replace('/', __dirname+'/')
+  }
 
-//   options = options || null
-//   fs.readFile(file, options, function(err, data) {
-//     if (err) return console.error(err)
-//     res.writeHead(200, {'Content-Type': mime.lookup(file)})
-//     res.write(data)
-//     res.end()
-//   })
-// }
+  options = options || null
+  fs.readFile(file, options, function(err, data) {
+    if (err) return console.error(err)
+    res.writeHead(200, {'Content-Type': mime.lookup(file)})
+    res.write(data)
+    res.end()
+  })
+}
 
 // //update db on regular basis
 // function updateDaily() {

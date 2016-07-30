@@ -7,7 +7,9 @@ var data = []
 var interval = undefined
 var svg = d3.select('#graph')
 var timeSpan = 30000
+var form = new FormData
 var debug = {n: 0, total: 0, average: null}
+
 // set d3 config
 var width = timeSpan,
     height = timeSpan/5
@@ -46,16 +48,29 @@ function stop() {
   return clearInterval(interval)
 }
 
+// newData is array of objects
+function addToForm(newData) {
+  var formData = form.get('data') || '[]'
+  formData = JSON.parse(formData)
+  formData.push(newData)
+  form.delete('data')
+  form.append('data', JSON.stringify(formData))
+}
+
 function updateGraph() {
   analyser.getByteTimeDomainData(datum)
 
   var vol = datum.reduce(function(a, b) {
     return a + Math.abs(b - 128)
   })
-  data.push({
+
+  dataObject = {
     time: Date.now(),
     vol: vol
-  })
+  }
+  data.push(dataObject)
+  // TODO: occasionally update form
+  addToForm(dataObject)
 
   // set time span to show
   var latest = data.length
@@ -145,3 +160,16 @@ if (navigator.mediaDevices) {
                 || navigator.mozGetUserMedia || navigator.msGetUserMedia
   navigator.getUserMedia({ audio: true }, getStream, throwErr)
 }
+
+// Button functionality
+document.querySelector('#post').addEventListener('click', function(e) {
+  e.preventDefault()
+  var XHR = new XMLHttpRequest()
+  XHR.addEventListener('load', function(loadEv) {
+    console.log('data sent')
+  })
+  XHR.addEventListener('error', throwErr)
+
+  XHR.open('POST', location.origin + '/saveaudio/')
+  XHR.send(form)
+})
