@@ -13,48 +13,89 @@ var http = require('http')
 var express = require('express')
 var fs = require('fs')
 var mime = require('mime')
+var bodyParser = require('body-parser')
 
 var app = express()
+var jsonParser = bodyParser.json()
 
-// updateDaily()
+app.get(/\/audiodb\/.*/, function(req, res) {
+  var data = []
+  var query = req.url.match(/\?(.*)/)
+  if (query) {
+    var time = query[1].match(/time=(\d+)/)
+    var limit = query[1].match(/limit=(\d+)/)
+
+    if (!time) {
+      console.error('no time query sents')
+      return res.sendStatus(400)
+    }
+    var opts = {
+      time: parseInt(time[1]),
+      limit: limit ? parseInt(time[1]) + parseInt(limit[1]) : parseInt(time[1]) + 60000
+    }
+    // get data from ?time to ?time + ?limit
+    db.createValueStream({
+      gte: 'audioDate_' + (opts.time - 40000),
+      lte: 'audioDate_' + opts.limit,
+      valueEncoding: 'json'
+    }).on('data', function(d) {
+      console.log('readStream')
+      if (typeof d !== 'object') {
+        return false
+      }
+      var first = null
+      var last = d.length
+      d.some(function(sample, i) {
+        if (first === null && sample.time > opts.time) {
+          first = i
+        }
+        if (sample.time > opts.limit) {
+          return last = i + 1
+        }
+      })
+      data = data.concat( d.slice(first || 0, last) )
+    }).on('error', function(e) {
+      console.error(e)
+    }).on('end', function() {
+      res.writeHead(200, {'Content-Type': 'text/plain'})
+      res.write(JSON.stringify(data))
+      res.end()
+    })
+
+  } else {
+    console.error('no query sent')
+    return res.sendStatus(400)
+  }
+   
+  console.log(req.url)
+})
 
 app.get(/.*/, function(req, res) {
   write(res, req.url)
 })
 
-app.post('/saveaudio/', function(req, res) {
-  req.on('data', function(d) {
-    var data = new Buffer(d).toString()
-    console.log(data)
-    res.writeHead(200, {'Content-Type': 'text/plain'})
-    res.write('success')
-    res.end()
-    // var json = JSON.parse(data)
-    // console.log('loginreq')
+app.post('/audiodb/', jsonParser, function(req, res) {
+  if (!req.body) {
+    return res.sendStatus(400)
+  }
+  
+  var data = req.body
+  console.log(typeof data + ' received')
+  res.writeHead(200, {'Content-Type': 'text/plain'})
+  res.write('success')
+  res.end()
 
-    // if (json.signup) {
-    //   console.log('signup:'+json.signup)
-    //   login.signup(json, writeIDs.bind(null, res))
-    // } else {
-    //   login.getIds(json, writeIDs.bind(null, res))
-    // }
+  var key = 'audioDate_' + data[0].time
+  db.put(key, data, { valueEncoding: 'json' }, function(err) {
+    if (err) {
+      console.error(err)
+    }
+    console.log('data stored as '+key)
   })
 })
 
 var server = app.listen(config.port, config.ip)
 console.log('server running on port '+config.port+'.')
-    
-// function callJSON(res) {
-//   var waitForData = setInterval(function() {
-//     console.log('waiting...')
-//     if (fetch.data) {
-//       clearInterval(waitForData)
-//       console.log('results to server')
-//       res.write(JSON.stringify(fetch.data))
-//       res.end()
-//     }
-//   }, 100)
-// }
 
 function write(res, file, options) {
   if (!file || file == '/') {
@@ -72,22 +113,3 @@ function write(res, file, options) {
   })
 }
 
-// //update db on regular basis
-// function updateDaily() {
-//   db.checkForUpdate()
-//   //get last millisecond of today
-//   var lastUpdate = new Date()
-//   lastUpdate.setHours(23)
-//   lastUpdate.setMinutes(59)
-//   lastUpdate.setSeconds(59)
-//   lastUpdate.setMilliseconds(999)
-  
-//   //update no later than 2am
-//   var updateDaily = setInterval(function() {
-//     var today = new Date()
-//     if (today > lastUpdate) {
-//       db.checkForUpdate()
-//       lastUpdate = today
-//     }
-//   }, 7200000)
-// }

@@ -7,70 +7,82 @@ var data = []
 var interval = undefined
 var svg = d3.select('#graph')
 var timeSpan = 30000
-var form = new FormData
+var form = []
 var debug = {n: 0, total: 0, average: null}
 
 // set d3 config
-var width = timeSpan,
-    height = timeSpan/5
-svg.attr('viewBox', '0 0 '+width+' '+height)
-var margin = {
-  top: 0, 
-  right: width / 30, 
-  bottom: height / 6, 
-  left: width / 6
-}
-var plot = {
-  width: width - margin.right - margin.left,
-  height: height - margin.top - margin.bottom
-}
-// x-axis is time
-var x = d3.time.scale()
-  .range([0, plot.width])
-// y-axis is numerical
-var y = d3.scale.linear()
-  .range([plot.height, 0])
-// set axis scales
-var xAxis = d3.svg.axis()
-  .scale(x)
-  .orient('bottom')
-  .tickFormat('')
-  .tickSize(0, 0)
+var width, height, margin, plot, x, y, xAxis, yAxis
+function setGraphConfigs() {
+  width = timeSpan,
+      height = timeSpan/5
+  svg.attr('viewBox', '0 0 '+width+' '+height)
+  margin = {
+    top: 0, 
+    right: width / 30, 
+    bottom: height / 6, 
+    left: width / 6
+  }
+  plot = {
+    width: width - margin.right - margin.left,
+    height: height - margin.top - margin.bottom
+  }
+  // x-axis is time
+  x = d3.time.scale()
+    .range([0, plot.width])
+  // y-axis is numerical
+  y = d3.scale.linear()
+    .range([plot.height, 0])
+  // set axis scales
+  xAxis = d3.svg.axis()
+    .scale(x)
+    .orient('bottom')
+    .tickFormat('')
+    .tickSize(0, 0)
 
-var yAxis = d3.svg.axis()
-  .scale(y)
-  .orient('left')
-  .tickFormat('')
-  .tickSize(600, null).ticks(11)
+  yAxis = d3.svg.axis()
+    .scale(y)
+    .orient('left')
+    .tickFormat('')
+    .tickSize(600, null).ticks(11)
+}
 
 // halt the process
 function stop() {
   return clearInterval(interval)
 }
+// send data to server for storage
+function storeData(formData) {
+  // reset form but keep data for this function
+  form = []
+  var XHR = new XMLHttpRequest()
+  XHR.addEventListener('load', function(loadEv) {
+    console.log('data sent')
+  })
+  XHR.addEventListener('error', throwErr)
 
-// newData is array of objects
-function addToForm(newData) {
-  var formData = form.get('data') || '[]'
-  formData = JSON.parse(formData)
-  formData.push(newData)
-  form.delete('data')
-  form.append('data', JSON.stringify(formData))
+  XHR.open('POST', location.origin + '/audiodb/')
+  XHR.setRequestHeader('Content-Type', 'application/json')
+  XHR.send(JSON.stringify(formData))
 }
 
-function updateGraph() {
-  analyser.getByteTimeDomainData(datum)
+function updateGraph(display) {
+  if (!display) {
+    analyser.getByteTimeDomainData(datum)
 
-  var vol = datum.reduce(function(a, b) {
-    return a + Math.abs(b - 128)
-  })
+    var vol = datum.reduce(function(a, b) {
+      return a + Math.abs(b - 128)
+    })
 
-  dataObject = {
-    time: Date.now(),
-    vol: vol
+    dataObject = {
+      time: Date.now(),
+      vol: vol
+    }
+    data.push(dataObject)
+    form.push(dataObject)
+    if (form.length >= 2000) {
+      storeData(form)
+    }
   }
-  data.push(dataObject)
-  // TODO: occasionally update form
-  addToForm(dataObject)
 
   // set time span to show
   var latest = data.length
@@ -136,6 +148,7 @@ function updateGraph() {
 
 // set up audio stream
 function getStream(stream) {
+  setGraphConfigs()
   console.log('stream gotten')
   source = audioCtx.createMediaStreamSource(stream)
   analyser = audioCtx.createAnalyser()
@@ -161,15 +174,22 @@ if (navigator.mediaDevices) {
   navigator.getUserMedia({ audio: true }, getStream, throwErr)
 }
 
-// Button functionality
-document.querySelector('#post').addEventListener('click', function(e) {
+document.querySelector('#display').addEventListener('click', function(e) {
   e.preventDefault()
   var XHR = new XMLHttpRequest()
-  XHR.addEventListener('load', function(loadEv) {
-    console.log('data sent')
+  XHR.addEventListener('load', function(res) {
+    stop()
+    data = JSON.parse(this.response)
+    if (!data.length) {
+      return console.warn('no data returned!')
+    }
+    timeSpan = data[data.length - 1].time - data[0].time
+    setGraphConfigs()
+    updateGraph(true)
+    console.log(this.response)
   })
   XHR.addEventListener('error', throwErr)
-
-  XHR.open('POST', location.origin + '/saveaudio/')
-  XHR.send(form)
+  var query = '?time=' + (Date.now() - 60000) + '&limit=' + 30000
+  XHR.open('GET', location.origin + '/audiodb/' + query)
+  XHR.send()
 })

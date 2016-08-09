@@ -1,5 +1,7 @@
 # Files
 .DS_Store
+d3.v3.min.js
+favicon.ico
 
 #Folders
 node_modules/
