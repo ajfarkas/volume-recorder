@@ -1,13 +1,15 @@
-var levelup = require('levelup')
+const { Level } = require('level')
 
-var config = {
+const config = {
   port: process.env.PORT || 8001,
   ip: '127.0.0.1',
   db: './audiodb',
   token: null,
   prettyHtml: true
 }
-var db = levelup(config.db)
+const db = new Level(config.db)
+// not necessary, makes first call faster.
+db.open()
 
 var http = require('http')
 var express = require('express')
@@ -18,7 +20,7 @@ var bodyParser = require('body-parser')
 var app = express()
 var jsonParser = bodyParser.json()
 
-app.get(/\/audiodb\/.*/, function(req, res) {
+app.get(/\/audiodb\/.*/, async function(req, res) {
   var data = []
   var query = req.url.match(/\?(.*)/)
   if (query) {
@@ -34,11 +36,11 @@ app.get(/\/audiodb\/.*/, function(req, res) {
       limit: limit ? parseInt(time[1]) + parseInt(limit[1]) : parseInt(time[1]) + 60000
     }
     // get data from ?time to ?time + ?limit
-    db.createValueStream({
+    for await (const d of db.values({
       gte: 'audioDate_' + (opts.time - 40000),
       lte: 'audioDate_' + opts.limit,
       valueEncoding: 'json'
-    }).on('data', function(d) {
+    })) {
       console.log('readStream')
       if (typeof d !== 'object') {
         return false
@@ -54,14 +56,11 @@ app.get(/\/audiodb\/.*/, function(req, res) {
         }
       })
       data = data.concat( d.slice(first || 0, last) )
-    }).on('error', function(e) {
-      console.error(e)
-    }).on('end', function() {
-      res.writeHead(200, {'Content-Type': 'text/plain'})
-      res.write(JSON.stringify(data))
-      res.end()
-    })
-
+    }
+    // on end
+    res.writeHead(200, {'Content-Type': 'text/plain'})
+    res.write(JSON.stringify(data))
+    res.end()
   } else {
     console.error('no query sent')
     return res.sendStatus(400)
@@ -74,7 +73,7 @@ app.get(/.*/, function(req, res) {
   write(res, req.url)
 })
 
-app.post('/audiodb/', jsonParser, function(req, res) {
+app.post('/audiodb/', jsonParser, async function(req, res) {
   if (!req.body) {
     return res.sendStatus(400)
   }
@@ -86,7 +85,7 @@ app.post('/audiodb/', jsonParser, function(req, res) {
   res.end()
 
   var key = 'audioDate_' + data[0].time
-  db.put(key, data, { valueEncoding: 'json' }, function(err) {
+  await db.put(key, data, { valueEncoding: 'json' }, function(err) {
     if (err) {
       console.error(err)
     }

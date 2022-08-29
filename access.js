@@ -1,4 +1,5 @@
-var audioCtx = new AudioContext()
+const startBtn = document.getElementById('start');
+let audioCtx = undefined
 var source = undefined
 var analyser = undefined
 var datum = undefined // single set of sound data
@@ -148,6 +149,7 @@ function updateGraph(display) {
 
 // set up audio stream
 function getStream(stream) {
+  audioCtx = audioCtx || new AudioContext()
   setGraphConfigs()
   console.log('stream gotten')
   source = audioCtx.createMediaStreamSource(stream)
@@ -163,16 +165,20 @@ function getStream(stream) {
 function throwErr(a, b, c, d) {
   console.error(a, b, c, d)
 }
-// get permission to access mic
-if (navigator.mediaDevices) {
-  navigator.mediaDevices.getUserMedia({audio: true})
-    .then(getStream)
-    .catch(throwErr)
-} else {
-  navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
-                || navigator.mozGetUserMedia || navigator.msGetUserMedia
-  navigator.getUserMedia({ audio: true }, getStream, throwErr)
-}
+
+startBtn.addEventListener('click', () => {
+  // get permission to access mic
+  if (navigator.mediaDevices) {
+    navigator.mediaDevices.getUserMedia({audio: true})
+      .then(getStream)
+      .catch(throwErr)
+  } else {
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
+                  || navigator.mozGetUserMedia || navigator.msGetUserMedia
+    navigator.getUserMedia({ audio: true }, getStream, throwErr)
+  }
+  startBtn.remove()
+});
 
 document.querySelector('#display').addEventListener('click', function(e) {
   e.preventDefault()

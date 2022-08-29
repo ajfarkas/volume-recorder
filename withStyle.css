@@ -3,6 +3,10 @@
   border: 0;
 }
 
+html {
+  font-size: 6.25%;
+}
+
 #graph {
   width: 960px;
   height: 480px;
@@ -15,10 +19,22 @@
 }
 
 text {
-  font-size: 50rem;
+  font-size: 800rem;
 }
 
 .tick line {
   stroke: black;
   stroke-width: 20;
+}
+
+#start {
+  appearance: none;
+  border: none;
+  background-color: aliceblue;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  font-size: 48rem;
 }
