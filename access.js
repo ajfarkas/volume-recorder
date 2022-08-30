@@ -1,19 +1,18 @@
 const startBtn = document.getElementById('start');
-let audioCtx = undefined
-var source = undefined
-var analyser = undefined
-var datum = undefined // single set of sound data
-var maxVol = undefined
-var data = []
-var interval = undefined
-var svg = d3.select('#graph')
-var timeSpan = 30000
-var form = []
-var debug = {n: 0, total: 0, average: null}
+const svg = d3.select('#graph')
+let audioCtx
+let analyser = undefined
+let datum = undefined // single set of sound data
+let maxVol = undefined
+let data = []
+let interval = undefined
+let timeSpan = 30000
+let form = []
+const debug = {n: 0, total: 0, average: null}
 
 // set d3 config
-var width, height, margin, plot, x, y, xAxis, yAxis
-function setGraphConfigs() {
+let width, height, margin, plot, x, y, xAxis, yAxis
+const setGraphConfigs = () => {
   width = timeSpan,
       height = timeSpan/5
   svg.attr('viewBox', '0 0 '+width+' '+height)
@@ -48,31 +47,31 @@ function setGraphConfigs() {
 }
 
 // halt the process
-function stop() {
+const stop = () => {
   return clearInterval(interval)
 }
 // send data to server for storage
-function storeData(formData) {
+const storeData = formData => {
   // reset form but keep data for this function
   form = []
-  var XHR = new XMLHttpRequest()
-  XHR.addEventListener('load', function(loadEv) {
+  const XHR = new XMLHttpRequest()
+  XHR.addEventListener('load', loadEv => {
     console.log('data sent')
   })
-  XHR.addEventListener('error', throwErr)
+  XHR.addEventListener('error', console.error)
 
-  XHR.open('POST', location.origin + '/audiodb/')
+  XHR.open('POST', `${location.origin}/audiodb/`)
   XHR.setRequestHeader('Content-Type', 'application/json')
   XHR.send(JSON.stringify(formData))
 }
 
-function updateGraph(display) {
+const updateGraph = display => {
   if (!display) {
     analyser.getByteTimeDomainData(datum)
 
-    var vol = datum.reduce(function(a, b) {
-      return a + Math.abs(b - 128)
-    })
+    const vol = datum.reduce((a, b) => (
+      a + Math.abs(b - 128)
+    ))
 
     dataObject = {
       time: Date.now(),
@@ -86,12 +85,12 @@ function updateGraph(display) {
   }
 
   // set time span to show
-  var latest = data.length
+  const latest = data.length
     ? data[data.length - 1].time
     : 0
-  var first = latest - timeSpan
+  const first = latest - timeSpan
   // trim data to show only span
-  data.some(function(d, i) {
+  data.some((d, i) => {
     if (d.time < first) {
       data.splice(i, 1)
     } else {
@@ -102,11 +101,11 @@ function updateGraph(display) {
   x.domain([first, latest])
   y.domain([0, maxVol])
 
-  var line = d3.svg.line()
-    .x(function(d) { return x(parseInt(d.time)) })
-    .y(function(d) { return y(d.vol) })  
+  const line = d3.svg.line()
+    .x(d => x(parseInt(d.time)))
+    .y(d => y(d.vol))
   // make the graph
-  var graph = undefined
+  let graph = undefined
 
   if (d3.select( '.graph-g').empty() ) {
     graph = svg.append('g')
@@ -148,11 +147,11 @@ function updateGraph(display) {
 }
 
 // set up audio stream
-function getStream(stream) {
+const getStream = stream => {
   audioCtx = audioCtx || new AudioContext()
   setGraphConfigs()
   console.log('stream gotten')
-  source = audioCtx.createMediaStreamSource(stream)
+  const source = audioCtx.createMediaStreamSource(stream)
   analyser = audioCtx.createAnalyser()
   analyser.fftSize = 2048
   source.connect(analyser)
@@ -162,28 +161,24 @@ function getStream(stream) {
   interval = setInterval(updateGraph, 10)
 }
 
-function throwErr(a, b, c, d) {
-  console.error(a, b, c, d)
-}
-
 startBtn.addEventListener('click', () => {
   // get permission to access mic
   if (navigator.mediaDevices) {
     navigator.mediaDevices.getUserMedia({audio: true})
       .then(getStream)
-      .catch(throwErr)
+      .catch(console.error)
   } else {
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia
                   || navigator.mozGetUserMedia || navigator.msGetUserMedia
-    navigator.getUserMedia({ audio: true }, getStream, throwErr)
+    navigator.getUserMedia({ audio: true }, getStream, console.error)
   }
   startBtn.remove()
 });
 
-document.querySelector('#display').addEventListener('click', function(e) {
+document.querySelector('#display').addEventListener('click', e => {
   e.preventDefault()
-  var XHR = new XMLHttpRequest()
-  XHR.addEventListener('load', function(res) {
+  const XHR = new XMLHttpRequest()
+  XHR.addEventListener('load', res => {
     stop()
     data = JSON.parse(this.response)
     if (!data.length) {
@@ -194,8 +189,8 @@ document.querySelector('#display').addEventListener('click', function(e) {
     updateGraph(true)
     console.log(this.response)
   })
-  XHR.addEventListener('error', throwErr)
-  var query = '?time=' + (Date.now() - 60000) + '&limit=' + 30000
+  XHR.addEventListener('error', console.error)
+  const query = `?time=${Date.now() - 60000}&limit=${30000}`
   XHR.open('GET', location.origin + '/audiodb/' + query)
   XHR.send()
 })
