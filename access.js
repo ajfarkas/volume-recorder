@@ -10,6 +10,29 @@ let timeSpan = 30000
 let form = []
 const debug = {n: 0, total: 0, average: null}
 
+const CIRCLE_BASIS = 0.1
+const LIGHT = {
+  RED: 5000,
+  YELLOW: 2000,
+  GREEN: 0,
+}
+
+const Graph = {
+  kind: 'CIRCLE',
+  CIRCLE: {
+    draw: console.log,
+    interval: 10,
+  },
+  LINE:  {
+    draw: console.log,
+    interval: 10
+  }
+}
+
+const setCSSVar = (prop, val) => {
+  document.documentElement.style.setProperty(prop, val)
+}
+
 // set d3 config
 let width, height, margin, plot, x, y, xAxis, yAxis
 const setGraphConfigs = () => {
@@ -65,13 +88,19 @@ const storeData = formData => {
   XHR.send(JSON.stringify(formData))
 }
 
+const getVolume = () => {
+  analyser.getByteTimeDomainData(datum)
+
+  const vol = datum.reduce((a, b) => (
+    a + Math.abs(b - 128)
+  ))
+
+  return vol
+}
+
 const updateGraph = display => {
   if (!display) {
-    analyser.getByteTimeDomainData(datum)
-
-    const vol = datum.reduce((a, b) => (
-      a + Math.abs(b - 128)
-    ))
+    const vol = getVolume();
 
     dataObject = {
       time: Date.now(),
@@ -146,19 +175,41 @@ const updateGraph = display => {
     .attr('d', line)
 }
 
+const minmax = { min: 999, max: 0 }
+const drawCircle = () => {
+  const vol = getVolume() - 128
+  const volDiameter = (vol) * CIRCLE_BASIS
+  let color = 'green'
+
+  setCSSVar('--circle-d', volDiameter)
+  if (vol >= LIGHT.RED) color = 'red'
+  else if (vol >= LIGHT.YELLOW) color = 'yellow'
+  setCSSVar('--stoplight', `var(--${color})`)
+
+  if (vol < minmax.min && vol > 0) minmax.min = vol
+  if (vol > minmax.max) minmax.max = vol
+    document.querySelector('.display').innerText = JSON.stringify(minmax)
+}
+
+Graph.LINE.draw = updateGraph
+Graph.CIRCLE.draw = drawCircle
+
 // set up audio stream
 const getStream = stream => {
+  const {draw, interval: drawInterval} = Graph[Graph.kind]
   audioCtx = audioCtx || new AudioContext()
-  setGraphConfigs()
+
+  if (Graph.kind === 'LINE') setGraphConfigs()
   console.log('stream gotten')
   const source = audioCtx.createMediaStreamSource(stream)
+
   analyser = audioCtx.createAnalyser()
   analyser.fftSize = 2048
   source.connect(analyser)
   datum = new Uint8Array(analyser.frequencyBinCount)
   maxVol = datum.length * 128
   // start graphing
-  interval = setInterval(updateGraph, 10)
+  interval = setInterval(draw, drawInterval)
 }
 
 startBtn.addEventListener('click', () => {

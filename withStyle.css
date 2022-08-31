@@ -1,3 +1,11 @@
+:root {
+  --circle-d: 0;
+  --green: #6bf06b;
+  --yellow: #f8ec08;
+  --red: #e71717;
+  --stoplight: var(--green);
+}
+
 * {
   margin: 0;
   border: 0;
@@ -5,6 +13,9 @@
 
 html {
   font-size: 6.25%;
+}
+p {
+  font-size: 16rem;
 }
 
 #graph {
@@ -37,4 +48,16 @@ text {
   width: 100vw;
   height: 100vh;
   font-size: 48rem;
+}
+
+#circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--circle-d) * 1px);
+  height: calc(var(--circle-d) * 1px);
+  border-radius: 50%;
+  background-color: var(--stoplight);
+  transition: 80ms all linear;
 }
