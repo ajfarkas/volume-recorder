@@ -4,6 +4,7 @@ let audioCtx = undefined
 let analyser = undefined
 let datum = undefined // single set of sound data
 let interval = undefined
+let globalStream = undefined
 
 const CIRCLE_BASIS = 0.01
 const LIGHT = {
@@ -59,12 +60,14 @@ Graph.CIRCLE.draw = drawCircle
 // halt the process
 const stop = () => {
 	clearInterval(interval)
+	globalStream.getTracks().forEach(track => track.stop())
 	drawCircle(true)
 	startBtn.style.display = ''
 }
 
 // set up audio stream
 const getStream = stream => {
+	globalStream = stream
 	const {draw, interval: drawInterval} = Graph[Graph.kind]
 	audioCtx = audioCtx || new AudioContext()
 
